@@ -2,21 +2,11 @@ import random
 from flask import Flask, request, jsonify, abort
 from firebase_admin import initialize_app, credentials, firestore
 import datetime
-import json
-import base64
-from dotenv import load_dotenv
-import os
-
-load_dotenv()
 
 app = Flask(__name__)
 
-# 環境変数からサービスアカウントキーを復元
-encoded_key = os.getenv("FIREBASE_KEY_BASE64")
-decoded_key = base64.b64decode(encoded_key).decode("utf-8")
-
 # Firebase Admin SDKの初期化
-cred = credentials.Certificate(json.loads(decoded_key))
+cred = credentials.Certificate("./key.json")  # サービスアカウントキーへのパスを指定
 initialize_app(cred)
 
 db = firestore.client()
@@ -24,18 +14,20 @@ db = firestore.client()
 # rooms collectionへの参照
 rooms_ref = db.collection('rooms')
 
+
 def generate_id():
     return random.randint(1, 999999)
 
+
 def validate_id(id_value):
-    if type(id_value) != int:
-        abort(400, description="Invalid ID. ID must be integer.")
     if not 1 <= id_value <= 999999:
         abort(400, description="Invalid ID. ID must be between 1 and 999999.")
+        
+def room_exists(room_id):
+    """指定された room_id のルームが存在するかどうかを確認する。"""
+    room = rooms_ref.document(str(room_id)).get()
+    return room.exists
 
-@app.route('/')
-def index():
-    return "Hello, World!"
 
 @app.route('/rooms', methods=['GET'])
 def get_rooms():
@@ -46,6 +38,21 @@ def get_rooms():
     except Exception as e:
         print(f"エラー: {e}")
         return jsonify({"message": "500-Internal Server Error"}), 500
+
+
+@app.route('/rooms/<int:room_id>', methods=['GET'])
+def room_exists(room_id):
+    validate_id(room_id)
+    try:
+        room = rooms_ref.document(str(room_id)).get()
+        if room.exists:
+            return jsonify({"exists": True}), 200
+        else:
+            return jsonify({"exists": False}), 404
+    except Exception as e:
+        print(f"エラー: {e}")
+        return jsonify({"message": "Internal Server Error"}), 500
+
 
 @app.route('/rooms', methods=['POST'])
 def create_room():
@@ -59,6 +66,7 @@ def create_room():
         print(f"エラー: {e}")
         return jsonify({"message": "500-Internal Server Error"}), 500
 
+
 @app.route('/rooms/<int:room_id>', methods=['DELETE'])
 def delete_room(room_id):
     validate_id(room_id)
@@ -71,6 +79,7 @@ def delete_room(room_id):
         return jsonify(
             {"message": "404-Not Found" if "NOT_FOUND" in str(e) else "500-Internal Server Error"}), 404 if "NOT_FOUND" in str(
             e) else 500
+
 
 @app.route('/rooms/<int:room_id>/players', methods=['GET'])
 def get_players(room_id):
@@ -86,6 +95,7 @@ def get_players(room_id):
     except Exception as e:
         print(e)
         return jsonify({"message": "500-Internal Server Error"}), 500
+
 
 @app.route('/rooms/<int:room_id>/players', methods=['POST'])
 def add_player(room_id):
@@ -117,6 +127,7 @@ def add_player(room_id):
         print(f"エラー: {e}")
         return jsonify({"message": "500-Internal Server Error"}), 500
 
+
 @app.route('/rooms/<int:room_id>/players/<int:player_id>', methods=['GET'])
 def get_player(room_id, player_id):
     validate_id(room_id)
@@ -134,6 +145,7 @@ def get_player(room_id, player_id):
     except Exception as e:
         print(e)
         return jsonify({"message": "Internal Server Error"}), 500
+
 
 @app.route('/rooms/<int:room_id>/players/<int:player_id>', methods=['PUT'])
 def update_player(room_id, player_id):
@@ -171,6 +183,7 @@ def update_player(room_id, player_id):
         print(f"エラー: {e}")
         return jsonify({"message": "Internal Server Error"}), 500
 
+
 @app.route('/rooms/<int:room_id>/players/<int:player_id>', methods=['DELETE'])
 def delete_player(room_id, player_id):
     validate_id(room_id)
@@ -192,6 +205,7 @@ def delete_player(room_id, player_id):
     except Exception as e:
         print(f"エラー: {e}")
         return jsonify({"message": "Internal Server Error"}), 500
+
 
 @app.route('/rooms/<int:room_id>/players/<int:player_id>/kill', methods=['PUT'])
 def kill_player(room_id, player_id):
@@ -236,6 +250,7 @@ def kill_player(room_id, player_id):
         return jsonify({"message": "Internal Server Error" if "invalid literal for int()" not in str(
             e) else "Bad Request: killed_id must be integer and between 1 and 999999"}), 500 if "invalid literal for int()" not in str(
             e) else 400
+
 
 if __name__ == '__main__':
     app.run(debug=True)

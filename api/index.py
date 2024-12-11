@@ -6,7 +6,10 @@ import json
 import base64
 from dotenv import load_dotenv
 import os
+import socketio
 
+
+#envのロード
 load_dotenv()
 
 app = Flask(__name__)
@@ -233,28 +236,38 @@ def kill_player(room_id, player_id):
             for i, player in enumerate(players):
                 if player.get("player_id") == player_id:
                     players[i]["isDead"] = True
-                    players[i][
-                        "killedTime"] = datetime.datetime.now(datetime.timezone(datetime.timedelta(hours=9))).strftime(
+                    players[i]["killedTime"] = datetime.datetime.now(datetime.timezone(datetime.timedelta(hours=9))).strftime(
                         '%Y/%m/%d %H:%M:%S')
                     killed_player_name = next((p.get("name") for p in players if p.get("player_id") == killed_id), "")
                     players[i]["killPlayerName"] = killed_player_name
                     rooms_ref.document(str(room_id)).update({"players": players})
 
-                    # WebSocket での送信処理はここに記述
-                    # ... (WebSocket の実装) ...
+                    killer_name = next((p.get("name") for p in players if p.get("player_id") == killed_id), None)
+                    killed_name = player.get("name")
+
+
+                    socketio.emit('kill_event', {
+                        'room_id': room_id,
+                        'killer_id': killed_id,
+                        'killer_name': killer_name,
+                        'killed_id': player_id,
+                        'killed_name': killed_name,
+                    }, room=str(room_id), namespace='/') #ルームIDを名前空間に指定
+
 
                     alive_players = [player for player in players if not player["isDead"]]
                     if len(alive_players) <= 1:
                         # ゲーム終了処理
-                        # ... (ゲーム終了処理のロジック) ...
-                        print(f"キル, 倒されたプレイヤーID={player_id}, 倒したプレイヤーID={killed_id}")
-                        return jsonify({"message": "KILLED"}), 200  # ゲーム終了のレスポンス
+                        socketio.emit('game_over', {'room_id': room_id}, room=str(room_id), namespace='/') # ゲームオーバーイベントを送信
+                        print(f"ゲームオーバー, 部屋ID={room_id}")
+                        return jsonify({"message": "GAME_OVER"}), 200
 
-                    return jsonify({"message": "OK"}), 200
+                    print(f"キル, 倒されたプレイヤーID={player_id}, 倒したプレイヤーID={killed_id}")
+                    return jsonify({"message": "KILLED"}), 200
 
-            return jsonify({"message": "Player Not Found"}), 404  # プレイヤーが見つからない場合の処理を追加
+            return jsonify({"message": "404-Player Not Found"}), 404  # プレイヤーが見つからない場合の処理を追加
         else:
-            return jsonify({"message": "Room Not Found"}), 404
+            return jsonify({"message": "404-Room Not Found"}), 404
 
     except Exception as e:
         print(f"エラー: {e}")
@@ -264,4 +277,5 @@ def kill_player(room_id, player_id):
 
 
 if __name__ == '__main__':
-    app.run(debug=True)
+  # socketio.run(app, debug=True) # Flask-SocketIOを使ってアプリを実行
+  app.run(debug=True)

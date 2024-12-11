@@ -1,0 +1,142 @@
+import firebase_admin
+from firebase_admin import credentials, firestore
+from flask import Flask, request, jsonify
+
+# Firebaseの初期化
+cred = credentials.Certificate("./key.json") # サービスアカウントキーのパスを指定
+firebase_admin.initialize_app(cred)
+
+db = firestore.client()
+
+app = Flask(__name__)
+
+# /rooms
+@app.route('/rooms', methods=['GET'])
+def get_all_rooms():
+    try:
+        rooms_ref = db.collection('rooms')
+        docs = rooms_ref.stream()
+        rooms = [doc.id for doc in docs]
+        return jsonify({'rooms': rooms}), 200
+    except Exception as e:
+        print(f"Error: {e}")
+        return jsonify({'message': 'Internal Server Error'}), 500
+
+@app.route('/rooms', methods=['POST'])
+def create_room():
+    try:
+        rooms_ref = db.collection('rooms')
+        new_room_ref = rooms_ref.document()  # 新しいドキュメントを自動生成
+        new_room_ref.set({}) # 空のドキュメントを作成
+        return jsonify({'room_id': new_room_ref.id}), 200
+    except Exception as e:
+        print(f"Error: {e}")
+        return jsonify({'message': 'Internal Server Error'}), 500
+
+
+# /rooms/{room_id}
+@app.route('/rooms/<room_id>', methods=['DELETE'])
+def delete_room(room_id):
+    try:
+        room_ref = db.collection('rooms').document(room_id)
+        if room_ref.get().exists:
+            room_ref.delete()
+            return jsonify({}), 200
+        else:
+            return jsonify({'message': 'Not Found'}), 404
+    except Exception as e:
+        print(f"Error: {e}")
+        return jsonify({'message': 'Internal Server Error'}), 500
+
+
+# /rooms/{room_id}/players
+@app.route('/rooms/<room_id>/players', methods=['GET'])
+def get_players(room_id):
+    try:
+        players_ref = db.collection('rooms').document(room_id).collection('players')
+        docs = players_ref.stream()
+        players = []
+        for doc in docs:
+            player = doc.to_dict()
+            player['id'] = doc.id
+            players.append(player)
+        return jsonify({'players': players}), 200
+    except Exception as e:
+        print(f"Error: {e}")
+        return jsonify({'message': 'Internal Server Error'}), 500
+
+
+@app.route('/rooms/<room_id>/players', methods=['POST'])
+def add_player(room_id):
+    try:
+        player_id = request.args.get('player_id')
+        player_name = request.args.get('player_name')
+
+        player_ref = db.collection('rooms').document(room_id).collection('players').document(str(player_id))
+        player_ref.set({
+            'name': player_name,
+            # 必要であれば他の初期値も設定
+        })
+        return jsonify({}), 200
+    except Exception as e:
+        print(f"Error: {e}")
+        return jsonify({'message': 'Internal Server Error'}), 500
+
+
+
+# /rooms/{room_id}/players/{player_id}
+@app.route('/rooms/<room_id>/players/<player_id>', methods=['GET'])
+def get_player(room_id, player_id):
+    try:
+        player_ref = db.collection('rooms').document(room_id).collection('players').document(player_id)
+        doc = player_ref.get()
+        if doc.exists:
+            player = doc.to_dict()
+            player['id'] = doc.id
+            return jsonify(player), 200
+        else:
+            return jsonify({'message': 'Not Found'}), 404
+
+    except Exception as e:
+        print(f"Error: {e}")
+        return jsonify({'message': 'Internal Server Error'}), 500
+
+
+@app.route('/rooms/<room_id>/players/<player_id>', methods=['PUT'])
+def update_player(room_id, player_id):
+    try:
+        player_ref = db.collection('rooms').document(room_id).collection('players').document(player_id)
+
+        if not player_ref.get().exists:
+            return jsonify({'message': 'Not Found'}), 404
+
+        updates = {
+            'name': request.args.get('player_name'),
+            'lat': float(request.args.get('player_lat')),
+            'lng': float(request.args.get('player_lng')),
+            'spec': request.args.get('player_spec')
+        }
+        player_ref.update(updates)
+
+        return jsonify({}), 200
+
+    except Exception as e:
+        print(f"Error: {e}")
+        return jsonify({'message': 'Internal Server Error'}), 500
+
+
+@app.route('/rooms/<room_id>/players/<player_id>', methods=['DELETE'])
+def delete_player(room_id, player_id):
+    try:
+        player_ref = db.collection('rooms').document(room_id).collection('players').document(player_id)
+        if player_ref.get().exists:
+            player_ref.delete()
+            return jsonify({}), 200
+        else:
+            return jsonify({'message': 'Not Found'}), 404
+    except Exception as e:
+        print(f"Error: {e}")
+        return jsonify({'message': 'Internal Server Error'}), 500
+
+if __name__ == '__main__':
+    app.run(debug=True)

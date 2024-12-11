@@ -2,11 +2,22 @@ import random
 from flask import Flask, request, jsonify, abort
 from firebase_admin import initialize_app, credentials, firestore
 import datetime
+import json
+import base64
+from dotenv import load_dotenv
+import os
+
+load_dotenv()
 
 app = Flask(__name__)
 
+# 環境変数からサービスアカウントキーを復元
+encoded_key = os.getenv("FIREBASE_KEY_BASE64")
+decoded_key = base64.b64decode(encoded_key).decode("utf-8")
+
 # Firebase Admin SDKの初期化
-cred = credentials.Certificate("./key.json")  # サービスアカウントキーへのパスを指定
+# cred = credentials.Certificate("./key.json")  # サービスアカウントキーへのパスを指定
+cred = credentials.Certificate(json.loads(decoded_key))
 initialize_app(cred)
 
 db = firestore.client()

@@ -215,8 +215,7 @@ def delete_player(room_id, player_id):
         if room.exists:
             players = room.to_dict().get("players", [])
             updated_players = [player for player in players if player.get("player_id") != player_id]
-            if len(updated_players) < len(
-                    players):  # 削除されたプレイヤーがいる場合のみ更新
+            if len(updated_players) < len(players):  # 削除されたプレイヤーがいる場合のみ更新
                 rooms_ref.document(str(room_id)).update({"players": updated_players})
                 print(f"プレイヤー削除成功, ID={player_id}")
                 # もし部屋にプレイヤーがいなくなった場合、部屋も削除

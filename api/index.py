@@ -7,7 +7,7 @@ import json
 import base64
 from dotenv import load_dotenv
 import os
-from flask_socketio import SocketIO, emit, join_room
+from flask_socketio import SocketIO, join_room
 import socketio
 
 
@@ -18,6 +18,9 @@ app = Flask(__name__)
 
 # 全てのオリジンに対して CORS を有効化
 CORS(app)
+
+# Flask-SocketIO の初期化
+socketio = SocketIO(app, cors_allowed_origins="*")
 
 # 環境変数からサービスアカウントキーを復元
 encoded_key = os.getenv("FIREBASE_KEY_BASE64")
@@ -301,3 +304,4 @@ def kill_player(room_id, player_id):
 
 if __name__ == '__main__':
   app.run(debug=True) # デバッグモードを有効にしてサーバーを起動
+  socketio.run(app, debug=True)

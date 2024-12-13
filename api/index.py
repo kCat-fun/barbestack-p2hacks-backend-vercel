@@ -7,7 +7,6 @@ import json
 import base64
 from dotenv import load_dotenv
 import os
-from flask_socketio import SocketIO, join_room
 import socketio
 
 #envのロード
@@ -17,9 +16,6 @@ app = Flask(__name__)
 
 # 全てのオリジンに対して CORS を有効化
 CORS(app)
-
-# Flask-SocketIO の初期化
-socketio = SocketIO(app, cors_allowed_origins="*")
 
 # 環境変数からサービスアカウントキーを復元
 encoded_key = os.getenv("FIREBASE_KEY_BASE64")
@@ -38,12 +34,12 @@ rooms_ref = db.collection('rooms')
 
 # 部屋ID初期化
 def generate_id():
-    return random.randint(100000, 999999)
+    return random.randint(1, 999999)
 
 # IDの検証、1以上999999以下であることを確認
 def validate_id(id_value):
-    if not 100000 <= id_value <= 999999:
-        abort(400, description="Invalid ID. ID must be between 100000 and 999999.")
+    if not 1 <= id_value <= 999999:
+        abort(400, description="Invalid ID. ID must be between 1 and 999999.")
         
         
 
@@ -120,6 +116,7 @@ def get_players(room_id):
         print(e)
         return jsonify({"message": "500-Internal Server Error"}), 500
 
+# 指定した対戦部屋にプレイヤーを追加する
 @app.route('/rooms/<int:room_id>/players', methods=['POST'])
 def add_player(room_id):
     validate_id(room_id)
@@ -144,25 +141,12 @@ def add_player(room_id):
             players.append(new_player)
             rooms_ref.document(str(room_id)).update({"players": players})
             print(f"プレイヤー生成成功, ID={player_id}")
-
-            # 同じ部屋にいるプレーヤーへWebSocketで通知
-            socketio.emit(
-                'player_joined',
-                to=str(room_id)
-            )
-
-            return jsonify({"message": "OK", "player_id": player_id}), 200
+            return jsonify({"message": "OK", "player_id": player_id}), 200  # 生成された player_id を返す
         else:
             return jsonify({"message": "404-Not Found"}), 404
     except Exception as e:
         print(f"エラー: {e}")
         return jsonify({"message": "500-Internal Server Error"}), 500
-
-@socketio.on('join_room')
-def handle_join_room(data):
-    room_id = str(data['room_id'])
-    join_room(room_id)
-    print(f"クライアントがルーム {room_id} に参加しました。")
 
 # 指定したプレイヤーの情報を取得する
 @app.route('/rooms/<int:room_id>/players/<int:player_id>', methods=['GET'])
@@ -303,4 +287,3 @@ def kill_player(room_id, player_id):
 
 if __name__ == '__main__':
   app.run(debug=True) # デバッグモードを有効にしてサーバーを起動
-  socketio.run(app, debug=True)

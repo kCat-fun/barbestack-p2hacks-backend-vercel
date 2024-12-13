@@ -219,6 +219,10 @@ def delete_player(room_id, player_id):
                     players):  # 削除されたプレイヤーがいる場合のみ更新
                 rooms_ref.document(str(room_id)).update({"players": updated_players})
                 print(f"プレイヤー削除成功, ID={player_id}")
+                # もし部屋にプレイヤーがいなくなった場合、部屋も削除
+                if len(updated_players) == 0:
+                    rooms_ref.document(str(room_id)).delete()
+                    print(f"部屋削除成功, ID={room_id}")
                 return jsonify({"message": "OK"}), 200
             else:
                 return jsonify({"message": "Player Not Found"}), 404  # プレイヤーが見つからない場合の処理を追加

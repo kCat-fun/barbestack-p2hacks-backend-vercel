@@ -9,7 +9,6 @@ from dotenv import load_dotenv
 import os
 import socketio
 
-
 #envのロード
 load_dotenv()
 

@@ -1,5 +1,6 @@
 import random
 from flask import Flask, request, jsonify, abort
+from flask_cors import CORS
 from firebase_admin import initialize_app, credentials, firestore
 import datetime
 import json
@@ -13,6 +14,9 @@ import socketio
 load_dotenv()
 
 app = Flask(__name__)
+
+# 全てのオリジンに対して CORS を有効化
+CORS(app)
 
 # 環境変数からサービスアカウントキーを復元
 encoded_key = os.getenv("FIREBASE_KEY_BASE64")

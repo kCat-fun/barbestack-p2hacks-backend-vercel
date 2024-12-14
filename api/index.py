@@ -34,14 +34,12 @@ rooms_ref = db.collection('rooms')
 
 # 部屋ID初期化
 def generate_id():
-    return random.randint(1, 999999)
+    return random.randint(100000, 999999)
 
 # IDの検証、1以上999999以下であることを確認
 def validate_id(id_value):
-    if not 1 <= id_value <= 999999:
+    if not 100000 <= id_value <= 999999:
         abort(400, description="Invalid ID. ID must be between 1 and 999999.")
-        
-        
 
 def room_exists(room_id):
     """指定された room_id のルームが存在するかどうかを確認する。"""
@@ -256,23 +254,23 @@ def kill_player(room_id, player_id):
                     killed_name = player.get("name")
 
                     # キルイベントを送信(socektio)、キルログ配信
-                    socketio.emit('kill_event', {
-                        'room_id': room_id,
-                        'killer_id': killed_id,
-                        'killer_name': killer_name,
-                        'killed_id': player_id,
-                        'killed_name': killed_name,
-                    }, room=str(room_id), namespace='/') #ルームIDを名前空間に指定
+                    # socketio.emit('kill_event', {
+                    #     'room_id': room_id,
+                    #     'killer_id': killed_id,
+                    #     'killer_name': killer_name,
+                    #     'killed_id': player_id,
+                    #     'killed_name': killed_name,
+                    # }, room=str(room_id), namespace='/') #ルームIDを名前空間に指定
 
                     # 死亡としてマーク
                     alive_players = [player for player in players if not player["isDead"]]
-                    if len(alive_players) <= 1:
-                        socketio.emit('game_over', {'room_id': room_id}, room=str(room_id), namespace='/') # ゲームオーバーイベントを送信
-                        print(f"キル発生, 部屋ID={room_id}")
-                        return jsonify({"message": "GAME_OVER"}), 200
+                    # if len(alive_players) <= 1:
+                    #     socketio.emit('game_over', {'room_id': room_id}, room=str(room_id), namespace='/') # ゲームオーバーイベントを送信
+                    #     print(f"キル発生, 部屋ID={room_id}")
+                    #     return jsonify({"message": "GAME_OVER"}), 200
 
                     print(f"キル, 倒されたプレイヤーID={player_id}, 倒したプレイヤーID={killed_id}")
-                    return jsonify({"message": "KILLED"}), 200
+                    return jsonify({"message": "KILLED", "alive_players": len(alive_players)}), 200
 
             return jsonify({"message": "404-Player Not Found"}), 404  # プレイヤーが見つからない場合の処理を追加
         else:
